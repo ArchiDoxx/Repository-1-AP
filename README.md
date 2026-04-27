@@ -1,2 +1,2 @@
 # Repository-1-AP
-Projekt für angewandte Programmierung
+Ich mag Zuege 
