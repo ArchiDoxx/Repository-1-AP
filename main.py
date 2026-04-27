@@ -1,6 +1,7 @@
-def main():
-    print("Hello from repository-1-ap!")
+from fastapi import FastAPI as fapi
 
+app = fapi()
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def root():
+    return {"message": "Hello World"}
