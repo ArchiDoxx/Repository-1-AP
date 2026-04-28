@@ -55,7 +55,8 @@ def save_notes(notes_db):
 
 
 @app.post("/notes", status_code=201)
-def create_note(note: NoteCreate):
+def create_note(note: NoteCreate) -> Note:
+
     """Create a new note"""
 
     notes_db, note_id_counter = load_notes()
