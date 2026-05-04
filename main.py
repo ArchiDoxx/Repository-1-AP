@@ -161,6 +161,42 @@ def get_note(note_id: int) -> Note:
     raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
 
 
+@app.put("/notes/{note_id}")
+def update_note(note_id: int, note_update: NoteCreate) -> Note:
+    """Replace all fields of a note (full update)"""
+    notes_db, _ = load_notes()
+
+    for i, note in enumerate(notes_db):
+        if note.id == note_id:
+            updated = Note(
+                id=note.id,
+                title=note_update.title,
+                content=note_update.content,
+                category=note_update.category,
+                tags=note_update.tags,
+                created_at=note.created_at,
+            )
+            notes_db[i] = updated
+            save_notes(notes_db)
+            return updated
+
+    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+
+
+@app.delete("/notes/{note_id}")
+def delete_note(note_id: int):
+    """Delete a note by ID"""
+    notes_db, _ = load_notes()
+
+    for i, note in enumerate(notes_db):
+        if note.id == note_id:
+            notes_db.pop(i)
+            save_notes(notes_db)
+            return {"message": f"Note {note_id} deleted"}
+
+    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+
+
 @app.patch("/notes/{note_id}")
 def partial_update_note(note_id: int, note_update: NoteUpdate) -> Note:
     """Partially update a note — only provided fields are changed"""
