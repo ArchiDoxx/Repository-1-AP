@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+from collections import Counter
 
 app = fapi(
     title = "Applied Programming Course HS-Coburg",
@@ -61,7 +62,7 @@ def save_notes(notes_db):
 
     with open(NOTES_FILE, 'w') as f:
         # Convert Note objects to dicts
-        notes_data = [note.dict() for note in notes_db]
+        notes_data = [note.model_dump() for note in notes_db]
         json.dump(notes_data, f, indent=2)
 
 
@@ -128,8 +129,6 @@ def list_notes(
 @app.get("/notes/stats")
 def get_note_stats():
     """Get statistics about all notes"""
-    from collections import Counter
-
     notes_db, _ = load_notes()
 
     by_category = {}
