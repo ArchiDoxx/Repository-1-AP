@@ -20,17 +20,17 @@ uv run fastapi dev main.py
 
 **Server starten (anderes Modul):**
 ```bash
-uv run fastapi dev Day_04_main.py
+uv run fastapi dev day_04_main.py
 ```
 
 **Tests ausführen:**
 ```bash
-uv run pytest DAy_04_tests.py -v
+uv run pytest day_04_tests.py -v
 ```
 
 **Einzelnen Test ausführen:**
 ```bash
-uv run pytest DAy_04_tests.py::tests_read_root -v
+uv run pytest day_04_tests.py::test_read_root -v
 ```
 
 Die API-Dokumentation ist nach dem Start unter `http://localhost:8000/docs` erreichbar.
@@ -39,7 +39,7 @@ Die API-Dokumentation ist nach dem Start unter `http://localhost:8000/docs` erre
 
 ### Dateistruktur pro Kurstag
 
-Jeder Tag bringt eine neue `Day_0X_main.py` plus eine zugehörige `Day_0X_tests.py`. Die zentrale `main.py` enthält den aktuell fertigen Stand der Note-API.
+Jeder Tag bringt eine neue `day_0X_main.py` plus eine zugehörige `day_0X_tests.py` (alles Kleinbuchstaben). Die zentrale `main.py` enthält den aktuell fertigen Stand der Note-API.
 
 ### Note-API (`main.py`)
 
@@ -60,7 +60,7 @@ Die Note-API speichert Daten als JSON-Datei (`data/notes.json`) ohne Datenbank. 
 ### Testansatz (Tag 4)
 
 Zwei Testvarianten nebeneinander:
-- `DAy_04_tests.py` — pytest mit `requests` gegen laufenden Server (`http://localhost:8000`)
-- `API-tests.py` — manuelle Integrationstests ohne pytest-Konventionen
+- `day_04_tests.py` — pytest mit `fastapi.testclient.TestClient` (kein laufender Server nötig); verwendet `Faker` für zufällige Testdaten
+- `API-tests.py` — manuelle Integrationstests mit `requests` gegen laufenden Server (`http://localhost:8000`)
 
-Für Tests mit `requests` muss der Server separat laufen. Alternativ kann `fastapi.testclient.TestClient` verwendet werden, der keinen laufenden Server benötigt.
+`TestClient` importiert die `app`-Instanz direkt aus `day_04_main.py` und simuliert HTTP-Requests im selben Prozess.
