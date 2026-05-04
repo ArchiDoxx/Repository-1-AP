@@ -1,7 +1,7 @@
 from main import app
 import requests
 
-url = "http://127.0.0.1:8000"
+url = "http://127.0.0.1:8009"
 
 def test_get_root():
     response = requests.get(url)

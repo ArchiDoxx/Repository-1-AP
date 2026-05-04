@@ -1,14 +1,14 @@
 import pytest
-import requests
+from fastapi.testclient import TestClient
 from faker import Faker
+from day_04_main import app
 
+client = TestClient(app)
 name_faker = Faker()
-
-BASE_URL = "http://localhost:8000"
 
 def test_read_root():
     """Test the root endpoint return hello world"""
-    response = requests.get(f"{BASE_URL}/")
+    response = client.get("/")
     # assert status code 200 is ok
     assert response.status_code == 200
 
@@ -17,12 +17,25 @@ def test_read_root():
     assert data["message"] == "Hello World!"
 
 def test_check_404_error():
-    response = requests.get(f"{BASE_URL}/nonexistent")
+    response = client.get("/nonexistent")
     assert response.status_code == 404
 
 def test_check_greetings():
-    name = "martin"
-    response = requests.get(f"{BASE_URL}/greetings/{name}")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["message"] == f"Hello {name}!"
+    """Test the personalized greeting endpoint with multiple random names """
+    for _ in range(10):
+        name = name_faker.first_name()
+        response = client.get(f"/greetings/{name}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message"] == f"Hello {name}!"
+
+
+def test_check_is_adult():
+    """Test if adult check works correctly"""
+
+    for age in range(0, 41):
+        adult = age >= 18
+        response = client.get(f"/is-adult/{age}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_adult"] == adult

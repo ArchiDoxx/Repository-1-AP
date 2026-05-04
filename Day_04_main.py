@@ -61,7 +61,7 @@ def check_adult(age: int):
     Check if person is an adult (18 or older)
     Example: /is-adult/17
     """
-    is_adult = age > 18
+    is_adult = age >= 18
 
     return {
         "age": age,
