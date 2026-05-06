@@ -41,5 +41,35 @@
     "category": "string",
     "tags": [],
     "created_at": "2026-05-06T08:21:54.579910+00:00"
+  },
+  {
+    "id": 6,
+    "title": "Baum",
+    "content": "Birke",
+    "category": "Pflanze",
+    "tags": [],
+    "created_at": "2026-05-06T11:20:45.336384+00:00"
+  },
+  {
+    "id": 7,
+    "title": "Baum",
+    "content": "Birke",
+    "category": "Pflanze",
+    "tags": [
+      "Hartholz",
+      "NATUR"
+    ],
+    "created_at": "2026-05-06T11:26:00.644025+00:00"
+  },
+  {
+    "id": 8,
+    "title": "Graspflanze",
+    "content": "L\u00f6wenzahn",
+    "category": "Pflanzen",
+    "tags": [
+      "Graspflanzen",
+      "NATUR"
+    ],
+    "created_at": "2026-05-06T11:26:05.719093+00:00"
   }
 ]
