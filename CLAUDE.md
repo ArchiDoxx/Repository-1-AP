@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projekt
 
-Lernprojekt des Kurses "Applied Programming" (HS Coburg). Jeder Kurstag ist eine eigenständige Übung rund um FastAPI.
+Lernprojekt des Kurses "Applied Programming" (HS Coburg). Alle Endpoints aus den Kurstagen sind in einer einzigen FastAPI-App (`main.py`) zusammengeführt; alle Tests liegen unter `tests/`.
 
 ## Befehle
 
@@ -13,63 +13,51 @@ Lernprojekt des Kurses "Applied Programming" (HS Coburg). Jeder Kurstag ist eine
 uv sync
 ```
 
-**Server starten (main.py):**
+**Server starten:**
 ```bash
 uv run fastapi dev main.py
 ```
 
-**Server starten (anderes Modul):**
-```bash
-uv run fastapi dev day_04_main.py
-```
-
 **Tests ausführen:**
 ```bash
-uv run pytest day_04_tests.py -v
+uv run pytest -v
 ```
 
 **Einzelnen Test ausführen:**
 ```bash
-uv run pytest day_04_tests.py::test_read_root -v
+uv run pytest test_main.py::test_read_root -v
 ```
 
 Die API-Dokumentation ist nach dem Start unter `http://localhost:8000/docs` erreichbar.
 
-## Dateistruktur & Namenskonventionen
+## Dateistruktur
 
 ```
 Repository-1-AP/
-├── main.py               # Wachsende Haupt-API (aktuell: Notes-API aus Tag 2)
-├── main_tag_3.py         # Älteres Format: Tag 3 (Query Parameters)
-├── day_04_main.py        # Neues Format: Tag 4 Hauptmodul
-├── day_04_tests.py       # Neues Format: Tag 4 Tests
-├── API-tests.py          # Manuelle Integrationstests gegen laufenden Server
-├── day-03-homework.py    # Hausaufgaben (Bindestrich-Format)
-├── day-03-homework.md    # Begleitdokumentation zu den Hausaufgaben
-├── day-04-presentation.md
-├── data/                 # JSON-Datenspeicher (z. B. notes.json)
-├── .venv/                # Virtuelle Umgebung (nicht einchecken)
-└── __pycache__/          # Python Bytecode-Cache (nicht einchecken)
+├── main.py                   # Komplette FastAPI-App (alle Tage, aufsteigend sortiert)
+├── test_main.py              # Pytest-Suite für alle Endpoints (Day 2 → 3 → 4 + Integration-Tests)
+├── data/                     # JSON-Datenspeicher (z. B. notes.json)
+├── day-03-homework.md        # Begleitdokumentation Hausaufgabe
+├── day-04-presentation.md    # Präsentation Tag 4
+├── work-log-template.md      # Vorlage Arbeitsprotokoll
+├── class_based_decorator.py  # Lernartefakt
+├── pyproject.toml
+├── uv.lock
+├── .venv/                    # Virtuelle Umgebung (nicht einchecken)
+└── __pycache__/              # Python Bytecode-Cache (nicht einchecken)
 ```
-
-### Namensregeln
-
-| Dateityp | Schema | Beispiel |
-|----------|--------|---------|
-| Kurstag-Hauptmodul (neu) | `day_XX_main.py` | `day_04_main.py` |
-| Kurstag-Tests (neu) | `day_XX_tests.py` | `day_04_tests.py` |
-| Kurstag-Hauptmodul (alt) | `main_tag_X.py` | `main_tag_3.py` |
-| Hausaufgaben Python | `day-XX-homework.py` | `day-03-homework.py` |
-| Markdown-Dokumente | `day-XX-<thema>.md` | `day-04-presentation.md` |
-
-**Regel:** Python-Module mit Unterstrich (`_`), Markdown- und Homework-Dateien mit Bindestrich (`-`).
-Neue Kurstage folgen dem Format `day_XX_main.py` / `day_XX_tests.py`.
 
 ## Architektur
 
-### Note-API (`main.py`)
+`main.py` enthält drei Endpoint-Gruppen auf einer einzigen `app`-Instanz, sortiert nach Kurstag:
 
-Die Note-API speichert Daten als JSON-Datei (`data/notes.json`) ohne Datenbank. Das Muster ist:
+1. **Day 2 — Notes API:** `POST/GET /notes`, `GET /notes/stats`, `GET /notes/{id}`, `PUT/PATCH/DELETE /notes/{id}`, `GET /categories`, `GET /categories/{name}/notes`
+2. **Day 3 — Query Parameters:** `GET /queryparameters`
+3. **Day 4 — Greetings:** `GET /`, `GET /greetings/{name}`, `GET /is-adult/{age}`
+
+### Notes API
+
+Speichert Daten als JSON-Datei (`data/notes.json`) ohne Datenbank. Muster:
 
 1. `load_notes()` — liest die JSON-Datei und gibt `(notes_db, next_id)` zurück
 2. Verarbeitung im Endpoint
@@ -79,26 +67,21 @@ Die Note-API speichert Daten als JSON-Datei (`data/notes.json`) ohne Datenbank. 
 
 ### Pydantic-Modelle
 
+- `GreetingResponse` — Hello-World-Response
 - `NoteCreate` — alle Felder Pflicht (für POST)
 - `NoteUpdate` — alle Felder `Optional` (für PATCH)
 - `Note` — vollständiges Objekt inkl. `id` und `created_at`
 
-### Tag 4 — Testing (`day_04_main.py` + `day_04_tests.py`)
+### Tests (`test_main.py`)
 
-**Thema:** Testen von FastAPI-Endpunkten mit pytest und TestClient.
+Eine einzige Test-Datei mit aufsteigender Tag-Sortierung:
 
-`day_04_main.py` enthält drei Endpunkte:
-- `GET /` — gibt `{"message": "Hello World!"}` zurück
-- `GET /greetings/{name}` — personalisierter Gruß
-- `GET /is-adult/{age}` — prüft Volljährigkeit, gibt `age`, `is_adult`, `can_vote`, `can_drive` zurück
+1. **Day 2** – Notes API (CRUD, Filtering, Errors, stats/categories/PATCH)
+2. **Day 3** – Query Parameters
+3. **Day 4** – Greeting Endpoints
+4. **Integration tests via requests** (am Ende) – brauchen einen laufenden Server unter `http://127.0.0.1:8000`, sonst `ConnectionError`
 
-`day_04_tests.py` testet **drei Apps gleichzeitig**:
-- `day_04_main.app` — Tag-4-Endpunkte
-- `main.app` (als `notes_app`) — Notes-API
-- `main_tag_3.app` (als `query_app`) — Query-Parameter-Endpunkt aus Tag 3
+Die Day-2/3/4-Tests verwenden `fastapi.testclient.TestClient` gegen die `app`-Instanz und brauchen keinen Server.
 
-Zwei Testvarianten nebeneinander:
-- `day_04_tests.py` — pytest mit `fastapi.testclient.TestClient` (kein laufender Server nötig); verwendet `Faker` für zufällige Testdaten; nutzt `monkeypatch` + `tmp_path` Fixture, um `NOTES_FILE` auf eine temporäre Datei umzuleiten
-- `API-tests.py` — manuelle Integrationstests mit `requests` gegen laufenden Server (`http://localhost:8000`)
-
-`TestClient` importiert die `app`-Instanz direkt und simuliert HTTP-Requests im selben Prozess.
+- `Faker` für zufällige Testdaten
+- `monkeypatch` + `tmp_path` Fixture (`clean_notes`), um `NOTES_FILE` auf eine temporäre Datei umzuleiten

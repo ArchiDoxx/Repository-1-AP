@@ -9,7 +9,7 @@ from collections import Counter
 app = fapi(
     title = "Applied Programming Course HS-Coburg",
     description= "Simple note management API",
-    version= "1.0.0" 
+    version= "1.0.0"
 )
 
 ##################################
@@ -231,3 +231,65 @@ def get_notes_by_category(category_name: str) -> list[Note]:
     """Get all notes in a specific category"""
     notes_db, _ = load_notes()
     return [note for note in notes_db if note.category == category_name]
+
+
+##################################
+#### Day 3: Query Parameters #####
+##################################
+
+@app.get("/queryparameters")
+def get_query_parameters(param1: str, param2: int) -> dict:
+
+        namen = ['martin', 'michael', 'sarah', 'anna', 'tom', 'lisa']
+
+        if not param1:
+              return{"namen": namen}
+
+        namen_gefiltert = []
+        for name in namen:
+                if param1 in name:
+                 namen_gefiltert.append(name)
+        return {"param1": param1, "param2": param2, "filtered_names": namen_gefiltert}
+
+
+##################################
+#### Day 4: Greeting Endpoints ###
+##################################
+
+class GreetingResponse(BaseModel):
+    """Response model for greeting endpoints
+
+    Attributes:
+        message (str): The greeting message to be returned to the client
+    """
+    message: str
+
+
+@app.get("/", response_model=GreetingResponse)
+def read_root():
+    """Welcome endpoint - returns greeting message"""
+    return {"message": "Hello World!"}
+
+
+
+
+@app.get("/greetings/{name}", response_model=GreetingResponse)
+def read_greeting(name: str):
+    """Personalized greeting endpoint - returns greeting message with name"""
+    return {"message": f"Hello {name}!"}
+
+
+@app.get("/is-adult/{age}")
+def check_adult(age: int):
+    """
+    Check if person is an adult (18 or older)
+    Example: /is-adult/17
+    """
+    is_adult = age >= 18
+
+    return {
+        "age": age,
+        "is_adult": is_adult,
+        "can_vote": is_adult,
+        "can_drive": is_adult
+    }
