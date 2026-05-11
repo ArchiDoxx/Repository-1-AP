@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from faker import Faker
+from sqlmodel import SQLModel, create_engine
 import requests
 import main
 from main import app
@@ -15,10 +16,12 @@ url = "http://127.0.0.1:8000"
 
 @pytest.fixture
 def clean_notes(tmp_path, monkeypatch):
-    """Redirect NOTES_FILE to a temp file so notes-tests don't touch real data"""
-    temp_file = tmp_path / "notes.json"
-    monkeypatch.setattr(main, "NOTES_FILE", temp_file)
-    yield temp_file
+    """Redirect the SQLite engine to a temp .db so notes-tests don't touch real data"""
+    temp_db = tmp_path / "notes.db"
+    test_engine = create_engine(f"sqlite:///{temp_db}")
+    SQLModel.metadata.create_all(test_engine)
+    monkeypatch.setattr(main, "engine", test_engine)
+    yield temp_db
 
 # ============================================================================
 # TESTS FOR main.py (Notes API)

@@ -1,8 +1,8 @@
 from fastapi import FastAPI as fapi, HTTPException
 from pydantic import BaseModel
+from sqlmodel import SQLModel, Field, Session, create_engine, select
 from typing import Optional
 from datetime import datetime, timezone
-import json
 from pathlib import Path
 from collections import Counter
 
@@ -16,6 +16,7 @@ app = fapi(
 #### Note API Endpoints Day 2 ####
 ##################################
 
+# Pydantic models for request bodies (tags as list)
 class NoteCreate(BaseModel):
     title: str
     content: str
@@ -28,37 +29,58 @@ class NoteUpdate(BaseModel):
     category: Optional[str] = None
     tags: Optional[list[str]] = None
 
-class Note(BaseModel):
-    id: int
+
+# SQLModel table: tags stored as CSV string (SQLite has no array type)
+class Note(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     content: str
     category: str
-    tags: list[str] = []
+    tags: str = ""
     created_at: str
 
-NOTES_FILE = Path("data/notes.json")
+
+# DB setup
+DB_FILE = Path("notes.db")
+engine = create_engine(f"sqlite:///{DB_FILE}")
+SQLModel.metadata.create_all(engine)
+
+
+# Helpers: convert between CSV string (DB) and list (API)
+def _tags_to_csv(tags: list[str]) -> str:
+    return ",".join(tags)
+
+def _tags_to_list(tags_csv: str) -> list[str]:
+    return tags_csv.split(",") if tags_csv else []
+
+def _note_to_dict(note: Note) -> dict:
+    """Convert a DB Note into the API response shape (tags as list)."""
+    return {
+        "id": note.id,
+        "title": note.title,
+        "content": note.content,
+        "category": note.category,
+        "tags": _tags_to_list(note.tags),
+        "created_at": note.created_at,
+    }
+
 
 @app.post("/notes", status_code=201)
-def create_note(note: NoteCreate) -> Note:
-
+def create_note(note: NoteCreate) -> dict:
     """Create a new note"""
-
-    notes_db, note_id_counter = load_notes()
-
     new_note = Note(
-        id=note_id_counter,
         title=note.title,
         content=note.content,
         category=note.category,
-        tags=note.tags,
-        created_at=datetime.now(timezone.utc).isoformat()
+        tags=_tags_to_csv(note.tags),
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
-    notes_db.append(new_note)
-    save_notes(notes_db)
-
-
-    return new_note
+    with Session(engine) as session:
+        session.add(new_note)
+        session.commit()
+        session.refresh(new_note)
+        return _note_to_dict(new_note)
 
 
 @app.get("/notes")
@@ -68,9 +90,10 @@ def list_notes(
     tag: Optional[str] = None,
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
-) -> list[Note]:
+) -> list[dict]:
     """List notes with optional filters"""
-    notes_db, _ = load_notes()
+    with Session(engine) as session:
+        notes_db = session.exec(select(Note)).all()
 
     filtered = []
     for note in notes_db:
@@ -84,7 +107,8 @@ def list_notes(
             if not (title_match or content_match):
                 continue
 
-        if tag and tag not in note.tags:
+        tag_list = _tags_to_list(note.tags)
+        if tag and tag not in tag_list:
             continue
 
         if created_after and note.created_at < created_after:
@@ -93,51 +117,23 @@ def list_notes(
         if created_before and note.created_at > created_before:
             continue
 
-        filtered.append(note)
+        filtered.append(_note_to_dict(note))
 
     return filtered
-
-
-def load_notes():
-    """Load notes from JSON file and return notes list and next ID counter"""
-    notes_db = []
-    note_id_counter = 1
-
-    if NOTES_FILE.exists():
-        with open(NOTES_FILE, 'r') as f:
-            data = json.load(f)
-            notes_db = [Note(**note) for note in data]
-
-            # Set counter to max ID + 1
-            if notes_db:
-                note_id_counter = max(note.id for note in notes_db) + 1
-
-    return notes_db, note_id_counter
-
-
-def save_notes(notes_db):
-    """Save notes to JSON file after each change"""
-    # Ensure data directory exists
-    NOTES_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(NOTES_FILE, 'w') as f:
-        # Convert Note objects to dicts
-        notes_data = [note.model_dump() for note in notes_db]
-        json.dump(notes_data, f, indent=2)
-
 
 
 @app.get("/notes/stats")
 def get_note_stats():
     """Get statistics about all notes"""
-    notes_db, _ = load_notes()
+    with Session(engine) as session:
+        notes_db = session.exec(select(Note)).all()
 
     by_category = {}
     tag_counter = Counter()
 
     for note in notes_db:
         by_category[note.category] = by_category.get(note.category, 0) + 1
-        for tag in note.tags:
+        for tag in _tags_to_list(note.tags):
             tag_counter[tag] += 1
 
     top_tags = [{"tag": tag, "count": count} for tag, count in tag_counter.most_common(5)]
@@ -151,87 +147,83 @@ def get_note_stats():
 
 
 @app.get("/notes/{note_id}")
-def get_note(note_id: int) -> Note:
+def get_note(note_id: int) -> dict:
     """Get a specific note by ID"""
-    notes_db, _ = load_notes()
-
-    for note in notes_db:
-        if note.id == note_id:
-            return note
-
-    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+    with Session(engine) as session:
+        note = session.get(Note, note_id)
+        if note is None:
+            raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+        return _note_to_dict(note)
 
 
 @app.put("/notes/{note_id}")
-def update_note(note_id: int, note_update: NoteCreate) -> Note:
+def update_note(note_id: int, note_update: NoteCreate) -> dict:
     """Replace all fields of a note (full update)"""
-    notes_db, _ = load_notes()
+    with Session(engine) as session:
+        note = session.get(Note, note_id)
+        if note is None:
+            raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
 
-    for i, note in enumerate(notes_db):
-        if note.id == note_id:
-            updated = Note(
-                id=note.id,
-                title=note_update.title,
-                content=note_update.content,
-                category=note_update.category,
-                tags=note_update.tags,
-                created_at=note.created_at,
-            )
-            notes_db[i] = updated
-            save_notes(notes_db)
-            return updated
+        note.title = note_update.title
+        note.content = note_update.content
+        note.category = note_update.category
+        note.tags = _tags_to_csv(note_update.tags)
 
-    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+        session.add(note)
+        session.commit()
+        session.refresh(note)
+        return _note_to_dict(note)
 
 
 @app.delete("/notes/{note_id}")
 def delete_note(note_id: int):
     """Delete a note by ID"""
-    notes_db, _ = load_notes()
-
-    for i, note in enumerate(notes_db):
-        if note.id == note_id:
-            notes_db.pop(i)
-            save_notes(notes_db)
-            return {"message": f"Note {note_id} deleted"}
-
-    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+    with Session(engine) as session:
+        note = session.get(Note, note_id)
+        if note is None:
+            raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+        session.delete(note)
+        session.commit()
+        return {"message": f"Note {note_id} deleted"}
 
 
 @app.patch("/notes/{note_id}")
-def partial_update_note(note_id: int, note_update: NoteUpdate) -> Note:
+def partial_update_note(note_id: int, note_update: NoteUpdate) -> dict:
     """Partially update a note — only provided fields are changed"""
-    notes_db, _ = load_notes()
+    with Session(engine) as session:
+        note = session.get(Note, note_id)
+        if note is None:
+            raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
 
-    for i, note in enumerate(notes_db):
-        if note.id == note_id:
-            updated = Note(
-                id=note.id,
-                title=note_update.title if note_update.title is not None else note.title,
-                content=note_update.content if note_update.content is not None else note.content,
-                category=note_update.category if note_update.category is not None else note.category,
-                tags=note_update.tags if note_update.tags is not None else note.tags,
-                created_at=note.created_at,
-            )
-            notes_db[i] = updated
-            save_notes(notes_db)
-            return updated
+        if note_update.title is not None:
+            note.title = note_update.title
+        if note_update.content is not None:
+            note.content = note_update.content
+        if note_update.category is not None:
+            note.category = note_update.category
+        if note_update.tags is not None:
+            note.tags = _tags_to_csv(note_update.tags)
 
-    raise HTTPException(status_code=404, detail=f"Note with ID {note_id} not found")
+        session.add(note)
+        session.commit()
+        session.refresh(note)
+        return _note_to_dict(note)
 
 
 @app.get("/categories")
 def list_categories() -> list[str]:
     """Get all unique categories from all notes"""
-    notes_db, _ = load_notes()
+    with Session(engine) as session:
+        notes_db = session.exec(select(Note)).all()
     return sorted({note.category for note in notes_db})
 
 
 @app.get("/categories/{category_name}/notes")
-def get_notes_by_category(category_name: str) -> list[Note]:
+def get_notes_by_category(category_name: str) -> list[dict]:
     """Get all notes in a specific category"""
-    notes_db, _ = load_notes()
-    return [note for note in notes_db if note.category == category_name]
+    with Session(engine) as session:
+        notes_db = session.exec(select(Note).where(Note.category == category_name)).all()
+    return [_note_to_dict(note) for note in notes_db]
 
 
 ##################################

@@ -1,5 +1,5 @@
 # streamlit installieren
-# streamlit app "HEllo World" erstellen und testen
+# streamlit app "Hello World" erstellen und testen
 # "say no" - app als ersten Teste rstellen
 # API: https://github.com/hotheadhacker/no-as-a-service
 # API Endpoint: https://naas.isalman.dev/no
@@ -18,13 +18,12 @@ from ast import Name
 import requests
 import streamlit as st
 
-URL = "https://naas.isalman.dev/no"                                         # Initiativ den API Endpoint angeben 
-
-def request_no():                                                           # 
-    response = requests.get(URL)
-    response_json = response.json()
-    return response_json["reason"]
-
+URL = "https://naas.isalman.dev/no"                         # Initiativ den API Endpoint angeben 
+def request_no():                                           # request_no sendet get Anfrage mit requests.get(URL) an die URL  
+    response = requests.get(URL)                            # und bekommt eine response zurück         
+    response_json = response.json()                         # response.json() konvertiert die response in ein JSON-Format,
+    return response_json["reason"]                          # Die Funktion gibt anschließend response_json["reason"] zurück.
+ 
 #Initialisierung
 if "text1" not in st.session_state:
     st.session_state["text1"] = request_no()
