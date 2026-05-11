@@ -173,7 +173,7 @@ def test_delete_note(clean_notes):
     """DELETE /notes/{id} removes the note; follow-up GET returns 404."""
     note_id = _create()["id"]
     response = client.delete(f"/notes/{note_id}")
-    assert response.status_code == 200
+    assert response.status_code == 204
     assert client.get(f"/notes/{note_id}").status_code == 404
 
 

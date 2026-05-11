@@ -13,8 +13,6 @@
 # - Funktion 2: Neue Notiz erstellen (Formular mit Titel, Inhalt, und Button)
 #     -> Neu erstellte Notiz soll in der Liste der Notitzen angezeigt werden.
 
-from ast import Name
-
 import requests
 import streamlit as st
 
