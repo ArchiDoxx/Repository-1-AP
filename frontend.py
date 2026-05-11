@@ -13,12 +13,14 @@
 # - Funktion 2: Neue Notiz erstellen (Formular mit Titel, Inhalt, und Button)
 #     -> Neu erstellte Notiz soll in der Liste der Notitzen angezeigt werden.
 
+from ast import Name
+
 import requests
 import streamlit as st
 
-URL = "https://naas.isalman.dev/no"
+URL = "https://naas.isalman.dev/no"                                         # Initiativ den API Endpoint angeben 
 
-def request_no():
+def request_no():                                                           # 
     response = requests.get(URL)
     response_json = response.json()
     return response_json["reason"]
@@ -44,3 +46,12 @@ st.write(st.session_state["text"])
 
 with st.expander("session state"):
     st.write(st.session_state)
+
+
+# Bau eiens Textfeldes, man kann Namen eingeben und er wird dann angezeigt. 
+# st.text_input() benötigt ein Label, das über dem Textfeld angezeigt wird (hier der Wert in der Klammer) 
+# ohne das "Name" in der Klammer würde es nur Error ausgeben.
+
+
+name = st.text_input("Name")
+st.write(name)
