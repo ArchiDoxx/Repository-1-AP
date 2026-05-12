@@ -27,6 +27,15 @@ def clean_notes(tmp_path, monkeypatch):
 # TESTS FOR main.py (Notes API)
 # ============================================================================
 
+####Day 3 Homework Features:**
+#- GET /notes/stats - Statistics
+#- GET /categories - List categories  
+#- GET /categories/{cat}/notes - Notes by category
+#- PATCH /notes/{id} - Partial updates
+#- Combined filters
+#- Database (if you did Task 6)
+
+
 def test_create_and_get_note(clean_notes):
     """Test creating a note and retrieving it by ID"""
     new_note = {
