@@ -342,3 +342,4 @@ def check_adult(age: int):
         "can_vote": is_adult,
         "can_drive": is_adult
     }
+

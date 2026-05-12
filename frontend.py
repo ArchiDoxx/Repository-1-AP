@@ -12,6 +12,7 @@
 #   -> Möglichket zu einem Titel den INhalt, Tags, Kateegorie, etc anzuzeigen.
 # - Funktion 2: Neue Notiz erstellen (Formular mit Titel, Inhalt, und Button)
 #     -> Neu erstellte Notiz soll in der Liste der Notitzen angezeigt werden.
+
 ######## 📝 Homework Assignment
 #**Goal:** Frontend for Notes-API 
 #**Time:** 3-4 hours  
