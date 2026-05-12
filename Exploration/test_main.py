@@ -500,3 +500,49 @@ def test_greetings_with_special_characters():
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == f"Hello {name}!"
+
+
+# ============================================================================
+# DELETE /notes/duplicates — Cleanup-Endpoint
+# ============================================================================
+# Duplikat = gleicher title + content + category. Tags zählen NICHT.
+# Behalten wird die älteste Notiz (kleinste id).
+
+_DUPE = {
+    "title": "Dupe Note",
+    "content": "same content",
+    "category": "work",
+    "tags": ["alpha"],
+}
+
+
+def test_delete_duplicates_removes_copies(clean_notes):
+    """3 identische Notizen anlegen → 2 werden gelöscht, älteste bleibt."""
+    for _ in range(3):
+        client.post("/notes", json=_DUPE)
+
+    response = client.delete("/notes/duplicates")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+    assert len(client.get("/notes").json()) == 1
+
+
+def test_delete_duplicates_is_idempotent(clean_notes):
+    """Zweiter Aufruf direkt danach liefert deleted=0."""
+    for _ in range(2):
+        client.post("/notes", json=_DUPE)
+    client.delete("/notes/duplicates")  # erster Aufruf bereinigt
+
+    second = client.delete("/notes/duplicates")
+    assert second.json() == {"deleted": 0}
+
+
+def test_delete_duplicates_keeps_oldest(clean_notes):
+    """Bei 2 identischen Notizen bleibt die mit kleinster id."""
+    first = client.post("/notes", json=_DUPE).json()
+    client.post("/notes", json=_DUPE)
+
+    client.delete("/notes/duplicates")
+    remaining = client.get("/notes").json()
+    assert len(remaining) == 1
+    assert remaining[0]["id"] == first["id"]

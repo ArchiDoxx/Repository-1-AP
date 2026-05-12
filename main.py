@@ -279,6 +279,27 @@ def update_note(note_id: int, note_update: NoteCreate, session: SessionDep) -> d
     return _note_to_dict(note)
 
 
+@app.delete("/notes/duplicates")
+def delete_duplicates(session: SessionDep) -> dict:
+    """Delete notes with identical title, content and category. Keeps the oldest (smallest id).
+    MUST be declared before /notes/{note_id}, otherwise 'duplicates' is matched as note_id.
+    """
+    notes = session.exec(select(Note).order_by(Note.id)).all()
+
+    seen = set()
+    deleted = 0
+    for note in notes:
+        key = (note.title, note.content, note.category)
+        if key in seen:
+            session.delete(note)
+            deleted += 1
+        else:
+            seen.add(key)
+
+    session.commit()
+    return {"deleted": deleted}
+
+
 @app.delete("/notes/{note_id}", status_code=204)
 def delete_note(note_id: int, session: SessionDep):
     """Delete a note by ID. Returns 204 No Content."""
