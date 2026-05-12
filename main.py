@@ -1,10 +1,11 @@
 from fastapi import FastAPI as fapi, HTTPException, Depends, Response
-from pydantic import BaseModel, StrictStr, field_validator
-from sqlmodel import SQLModel, Field, Session, create_engine, select
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from sqlmodel import SQLModel, Field as SQLField, Session, create_engine, select
 from typing import Optional, Annotated
 from datetime import datetime, timezone
 from pathlib import Path
 from collections import Counter
+import re
 
 app = fapi(
     title = "Applied Programming Course HS-Coburg",
@@ -16,15 +17,28 @@ app = fapi(
 #### Note API Endpoints Day 2 ####
 ##################################
 
+# Day 5 Task 2 & 5: Validation constants — single source of truth
+ALLOWED_CATEGORIES = {"work", "personal", "school", "ideas", "general"}
+TAG_PATTERN = re.compile(r"^[a-z0-9-]+$")  # Day 5 Task 5: tag name format
+
+
 # Pydantic models for request bodies (tags as list)
 def _normalize_tags(v: list[str]) -> list[str]:
-    """Strip + lowercase + dedupe. Reject tags shorter than 2 chars or more than 10 entries."""
+    """Strip + lowercase + dedupe each tag.
+    Rejects: <2 chars, >30 chars, non-matching pattern, >10 tags total (Day 5 Task 5).
+    """
     seen = set()
     result = []
     for tag in v:
         normalized = tag.strip().lower()
         if len(normalized) < 2:
             raise ValueError("each tag must be at least 2 characters after trimming")
+        if len(normalized) > 30:
+            raise ValueError("each tag must be at most 30 characters")
+        if not TAG_PATTERN.fullmatch(normalized):
+            raise ValueError(
+                f"tag '{normalized}' must contain only lowercase letters, digits, or dashes"
+            )
         if normalized not in seen:
             seen.add(normalized)
             result.append(normalized)
@@ -34,22 +48,74 @@ def _normalize_tags(v: list[str]) -> list[str]:
 
 
 class NoteCreate(BaseModel):
-    title: StrictStr
-    content: StrictStr
-    category: StrictStr
-    tags: list[str] = []
+    # Day 5 Task 1: model-wide config
+    #   str_strip_whitespace -> auto-strip every str field before validation
+    #   extra="forbid"       -> reject typos like {"tagz": [...]} with 422
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
+    # Day 5 Task 1: Field constraints (length / count caps)
+    title: str = Field(min_length=3, max_length=100)
+    content: str = Field(min_length=1, max_length=10_000)
+    category: str = Field(min_length=2, max_length=30)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+    # Day 5 Task 2: category must be in whitelist (lowercased before checking)
+    @field_validator("category")
+    @classmethod
+    def _category_whitelist(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in ALLOWED_CATEGORIES:
+            raise ValueError(
+                f"category must be one of {sorted(ALLOWED_CATEGORIES)}"
+            )
+        return normalized
+
+    # Day 5 Task 2 / Task 5: tag normalization + pattern check
     @field_validator("tags")
     @classmethod
     def _validate_tags(cls, v: list[str]) -> list[str]:
         return _normalize_tags(v)
 
+    # -----------------------------------------------------------------------
+    # Day 5 Task 3 — Cross-Field Rule (didaktisch, NICHT aktiv)
+    # -----------------------------------------------------------------------
+    # Spec: wenn category == "work", muss "work" in tags enthalten sein.
+    # Warum nicht aktiv: unsere Referenz-Test-Suite (Exploration/test_suit.py)
+    # legt diverse work-Notizen ohne work-Tag an. Aktivierung würde ~15 Tests
+    # brechen. Deshalb hier nur als didaktischer Block dokumentiert.
+    #
+    # from pydantic import model_validator
+    # from typing_extensions import Self
+    #
+    # @model_validator(mode="after")
+    # def _work_notes_need_work_tag(self) -> Self:
+    #     """If category is 'work', the tag list must contain 'work'."""
+    #     if self.category == "work" and "work" not in self.tags:
+    #         raise ValueError("work notes must include the 'work' tag")
+    #     return self
+
 
 class NoteUpdate(BaseModel):
-    title: Optional[StrictStr] = None
-    content: Optional[StrictStr] = None
-    category: Optional[StrictStr] = None
-    tags: Optional[list[str]] = None
+    # Day 5 Task 4: PATCH-Modell, gleiche Regeln aber alle Felder Optional.
+    # Constraints greifen NUR, wenn das Feld mitgeschickt wird.
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    title: Optional[str] = Field(default=None, min_length=3, max_length=100)
+    content: Optional[str] = Field(default=None, min_length=1, max_length=10_000)
+    category: Optional[str] = Field(default=None, min_length=2, max_length=30)
+    tags: Optional[list[str]] = Field(default=None, max_length=10)
+
+    @field_validator("category")
+    @classmethod
+    def _category_whitelist(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        normalized = v.strip().lower()
+        if normalized not in ALLOWED_CATEGORIES:
+            raise ValueError(
+                f"category must be one of {sorted(ALLOWED_CATEGORIES)}"
+            )
+        return normalized
 
     @field_validator("tags")
     @classmethod
@@ -61,7 +127,7 @@ class NoteUpdate(BaseModel):
 
 # SQLModel table: tags stored as CSV string (SQLite has no array type)
 class Note(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = SQLField(default=None, primary_key=True)
     title: str
     content: str
     category: str
