@@ -13,6 +13,14 @@ from datetime import datetime, timedelta
 import pytest
 import requests
 
+
+## 📝 Homework Assignment
+#**Goal:** Make the tests running and catch up if you are behind
+#**Time:** 2-8 hours  
+#**Submit:** Complete project folder 
+#**Deadline:** Before Day 7 class
+
+
 BASE_URL = "http://127.0.0.1:8000"
 
 
