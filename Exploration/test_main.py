@@ -41,7 +41,7 @@ def test_create_and_get_note(clean_notes):
     new_note = {
         "title": "Test Note",
         "content": "This is a test note",
-        "category": "general",  # Day 5 whitelist
+        "category": "testing",
         "tags": ["pytest", "fastapi"]
     }
 
@@ -123,7 +123,7 @@ def test_query_parameters_missing_required():
 NOTE = {
     "title": "Test Note",
     "content": "Test content",
-    "category": "general",  # Day 5 whitelist: work/personal/school/ideas/general
+    "category": "Testing",
     "tags": ["test", "pytest"],
 }
 
@@ -168,7 +168,7 @@ def test_update_note(clean_notes):
     updated = {
         "title": "Updated Title",
         "content": "Updated content",
-        "category": "personal",  # Day 5 whitelist (was "Updated", not in set)
+        "category": "Updated",
         "tags": ["updated"],
     }
     response = client.put(f"/notes/{note_id}", json=updated)
@@ -195,30 +195,30 @@ def test_filter_by_category(clean_notes):
     for i in range(3):
         client.post("/notes", json={
             "title": f"Work Note {i}", "content": "Content",
-            "category": "work", "tags": [],
+            "category": "Work", "tags": [],
         })
     client.post("/notes", json={
         "title": "Personal Note", "content": "Content",
-        "category": "personal", "tags": [],
+        "category": "Personal", "tags": [],
     })
 
-    response = client.get("/notes?category=work")  # Day 5: stored lowercase
+    response = client.get("/notes?category=Work")
     assert response.status_code == 200
     notes = response.json()
     assert len(notes) == 3
     for note in notes:
-        assert note["category"] == "work"
+        assert note["category"] == "Work"
 
 
 def test_filter_by_search(clean_notes):
     """GET /notes?search=meeting only returns notes whose title/content matches."""
     client.post("/notes", json={
         "title": "Important meeting notes", "content": "Discussed project timeline",
-        "category": "work", "tags": [],
+        "category": "Work", "tags": [],
     })
     client.post("/notes", json={
         "title": "Shopping list", "content": "Milk, eggs, bread",
-        "category": "personal", "tags": [],
+        "category": "Personal", "tags": [],
     })
 
     response = client.get("/notes?search=meeting")
@@ -232,11 +232,11 @@ def test_filter_by_tag(clean_notes):
     """GET /notes?tag=urgent only returns notes with that tag."""
     client.post("/notes", json={
         "title": "Urgent task", "content": "Must finish today",
-        "category": "work", "tags": ["urgent", "work"],
+        "category": "Work", "tags": ["urgent", "work"],
     })
     client.post("/notes", json={
         "title": "Normal task", "content": "Can wait",
-        "category": "work", "tags": ["work"],
+        "category": "Work", "tags": ["work"],
     })
 
     response = client.get("/notes?tag=urgent")
@@ -250,22 +250,22 @@ def test_combined_filters(clean_notes):
     """GET /notes?category=Work&tag=urgent&search=meeting applies all three filters."""
     client.post("/notes", json={
         "title": "Work meeting", "content": "Agenda for tomorrow",
-        "category": "work", "tags": ["urgent"],
+        "category": "Work", "tags": ["urgent"],
     })
     client.post("/notes", json={
         "title": "Personal meeting", "content": "Doctor appointment",
-        "category": "personal", "tags": ["urgent"],
+        "category": "Personal", "tags": ["urgent"],
     })
     client.post("/notes", json={
         "title": "Work task", "content": "No meeting here",
-        "category": "work", "tags": [],
+        "category": "Work", "tags": [],
     })
 
-    response = client.get("/notes?category=work&tag=urgent&search=meeting")
+    response = client.get("/notes?category=Work&tag=urgent&search=meeting")
     assert response.status_code == 200
     notes = response.json()
     assert len(notes) == 1
-    assert notes[0]["category"] == "work"
+    assert notes[0]["category"] == "Work"
     assert "urgent" in notes[0]["tags"]
 
 
@@ -300,12 +300,9 @@ def test_get_nonexistent_note(clean_notes):
 
 
 def test_update_nonexistent_note(clean_notes):
-    """PUT /notes/99999 returns 404.
-    Body must be Day-5-valid (title>=3, content>=1, category in whitelist),
-    otherwise validation 422 would happen BEFORE the 404 not-found check.
-    """
+    """PUT /notes/99999 returns 404."""
     response = client.put("/notes/99999", json={
-        "title": "xxx", "content": "x", "category": "work", "tags": [],
+        "title": "X", "content": "X", "category": "X", "tags": [],
     })
     assert response.status_code == 404
 
@@ -322,7 +319,7 @@ def test_delete_nonexistent_note(clean_notes):
 
 def test_notes_statistics(clean_notes):
     """GET /notes/stats returns the expected structure and correct counts."""
-    for category in ["work", "work", "personal"]:
+    for category in ["Work", "Work", "Personal"]:
         client.post("/notes", json={
             "title": "Note", "content": "Content",
             "category": category, "tags": ["common"],
@@ -338,13 +335,13 @@ def test_notes_statistics(clean_notes):
     assert "unique_tags_count" in data
 
     assert data["total_notes"] == 3
-    assert data["by_category"]["work"] == 2
-    assert data["by_category"]["personal"] == 1
+    assert data["by_category"]["Work"] == 2
+    assert data["by_category"]["Personal"] == 1
 
 
 def test_list_categories(clean_notes):
     """GET /categories returns all unique categories."""
-    for cat in ["work", "personal", "school"]:
+    for cat in ["Work", "Personal", "Study"]:
         client.post("/notes", json={
             "title": "Note", "content": "Content", "category": cat, "tags": [],
         })
@@ -352,25 +349,25 @@ def test_list_categories(clean_notes):
     response = client.get("/categories")
     assert response.status_code == 200
     categories = response.json()
-    assert "work" in categories
-    assert "personal" in categories
-    assert "school" in categories
+    assert "Work" in categories
+    assert "Personal" in categories
+    assert "Study" in categories
 
 
 def test_notes_by_category(clean_notes):
     """GET /categories/{name}/notes returns only notes in that category."""
     client.post("/notes", json={
-        "title": "Work Note", "content": "Content", "category": "work", "tags": [],
+        "title": "Work Note", "content": "Content", "category": "Work", "tags": [],
     })
     client.post("/notes", json={
-        "title": "Personal Note", "content": "Content", "category": "personal", "tags": [],
+        "title": "Personal Note", "content": "Content", "category": "Personal", "tags": [],
     })
 
-    response = client.get("/categories/work/notes")
+    response = client.get("/categories/Work/notes")
     assert response.status_code == 200
     notes = response.json()
     assert len(notes) == 1
-    assert notes[0]["category"] == "work"
+    assert notes[0]["category"] == "Work"
 
 
 def test_patch_note_title_only(clean_notes):
@@ -404,7 +401,7 @@ def test_patch_multiple_fields(clean_notes):
 
 
 # ============================================================================
-# SESSION: API-tests.py – Manuelle Integrationstests (laufender Server nötig)
+# SESSION: API-tests.py – Manuelle Integrationstests 
 # ============================================================================
 
 def test_get_root():
